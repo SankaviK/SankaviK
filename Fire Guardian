@@ -1,0 +1,10 @@
+"Fire Guardian" is a group project which is conducted in the
+Electrical Measurement and Instrumentation module -
+Semester 4 from the Department of Electrical Engineering,
+University of Moratuwa. This is a fire-detecting and fireprevention system. This was a LabVIEW-based project and we
+had to design one sensor and use other two more sensors
+with proper actuators. We successfully designed and
+implemented this system using Arduino Uno Board, ESP32,
+and SIM900A GSM module.
+We demonstrated this project at the "EXMO" exhibition which
+is conducted by the University of Moratuwa.
