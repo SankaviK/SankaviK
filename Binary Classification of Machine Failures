@@ -1,0 +1,422 @@
+<h1 style='background:#0A4D68; border:3; color:cyan; border-color:cyan; border-style:dotted;'><center> Binary Classification of Machine Failures</center></h1> 
+
+<center>
+<img style="align:center;" src="https://gesrepair.com/wp-content/uploads/35DDEBA8-EA7C-4121-AC06-CEBA29C56D07-1024x592.jpeg" width=900>
+</center>
+
+<h1 style='background:#0A4D68; border:3; color:cyan; border-color:cyan; border-style:dotted;'><center> TABLE OF CONTENT</center></h1> 
+
+
+<a id='1' style="color:cyan ">1. IMPORTING LIBRARIES</a>
+
+<a id='2' style="color:cyan ">2. LOADING DATASET</a>
+
+<a id='3' style="color:cyan ">3. DATA DESCRIPTION</a>
+
+<a id='4' style="color:cyan ">4. EXPLORATORY DATA ANALYSIS</a>
+
+<a id='6' style="color:cyan ">5. FEATURE ENGINEERING</a>
+
+<a id='5' style="color:cyan ">6. MISSING VALUES</a>
+
+<a id='7' style="color:cyan ">7. DATA VISUALIZATION</a>
+
+<a id='8' style="color:cyan ">8. OUTLIER DETECTION</a>
+
+<a id='9' style="color:cyan ">9. DATA PREPROCESSING</a>
+
+<a id='10' style="color:cyan ">10. MODEL TRAINING AND EVALUATING</a>
+
+<a id='11' style="color:cyan ">11. MODEL TUNING</a>
+
+<a id='12' style="color:cyan ">12. CONCLUSION</a>
+
+                      
+</div>
+
+<h1 style='background:#0A4D68; border:3; color:cyan; border-color:cyan; border-style:dotted;'><center> IMPORTING LIBRARIES</center></h1> 
+#importing libraries
+import numpy as np
+import pandas as pd 
+import seaborn as sns
+import matplotlib.pyplot as plt
+import plotly.express as px
+from matplotlib import colors
+import plotly.graph_objs as go
+from plotly.subplots import make_subplots
+from plotly.offline import init_notebook_mode, iplot
+init_notebook_mode(connected=True)
+from sklearn.decomposition import PCA
+from sklearn.preprocessing import LabelEncoder, OneHotEncoder
+from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import MinMaxScaler
+from sklearn.preprocessing import RobustScaler
+from sklearn.model_selection import train_test_split,KFold
+from sklearn.model_selection import GridSearchCV
+from sklearn.model_selection import cross_val_score
+from sklearn.model_selection import cross_validate 
+from sklearn.metrics import confusion_matrix, accuracy_score, classification_report,roc_auc_score,roc_curve
+from sklearn.metrics import mean_absolute_error,mean_squared_error,r2_score,f1_score,precision_score,recall_score
+from sklearn.linear_model import LogisticRegression
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier, AdaBoostClassifier
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.svm import SVC
+from sklearn.naive_bayes import GaussianNB
+from xgboost import XGBClassifier
+from catboost import Pool, CatBoostClassifier 
+import warnings
+warnings.filterwarnings("ignore")
+warnings.simplefilter(action='ignore', category=FutureWarning)
+pd.set_option('display.max_columns', None)
+pd.set_option('display.max_rows', None)
+pd.options.display.float_format = '{:.2f}'.format
+pd.options.mode.chained_assignment = None
+
+%matplotlib inline
+
+<h1 style='background:#0A4D68; border:3; color:cyan; border-color:cyan; border-style:dotted;'><center> LOADING DATASET</center></h1> 
+train=pd.read_csv('/kaggle/input/playground-series-s3e17/train.csv')
+df=train.copy()
+test=pd.read_csv('/kaggle/input/playground-series-s3e17/test.csv')
+df_test=test.copy()
+
+df.head().style.set_properties(**{'background-color': 'black',
+                            'color': 'cyan',
+                            'border-color': 'white'})
+
+<h1 style='background:#0A4D68; border:3; color:cyan; border-color:cyan; border-style:dotted;'><center> DATASET DESCRIPTION</center></h1> 
+### Dataset Description
+* The dataset for this competition (both train and test) was generated from a deep learning model trained on the Machine Failure Predictions. Feature distributions are close to, but not exactly the same, as the original. Feel free to use the original dataset as part of this competition, both to explore differences as well as to see whether incorporating the original in training improves model performance.
+
+#### Files
+* train.csv - the training dataset; Machine failure is the (binary) target (which, in order to align with the ordering of the original dataset, is not in the last column position)
+* test.csv - the test dataset; your objective is to predict the probability of Machine failure
+<h1 style='background:#0A4D68; border:3; color:cyan; border-color:cyan; border-style:dotted;'><center> EXPLORATORY DATA ANALYSIS</center></h1> 
+# 1. Exploratory Data Analysis:
+
+def check_df(df):
+    print("##################### Shape #####################")
+    print(df.shape)
+    print("##################### Types #####################")
+    print(df.dtypes)
+    print("##################### Head #####################")
+    print(df.head(3))
+    print("##################### Tail #####################")
+    print(df.tail(3))
+    print("##################### Null values #####################")
+    print(df.isnull().sum())
+    print("##################### Quantiles #####################")
+    print(df.describe().T)
+    print("##################### Unique #####################")
+    print(df.nunique())
+    print("##################### Columns #####################")
+    print(df.columns)
+
+check_df(df)
+df.info()
+# describe stats of the data
+cols=df.select_dtypes(include=['float64','int64'])
+cmap1 = 'viridis'
+def desc_stats(dataframe):
+    desc = dataframe.describe().T
+    f,ax = plt.subplots(figsize=(10,
+                                 desc.shape[0] * 0.75))
+    sns.heatmap(desc,
+                annot = True,
+                cmap = cmap1,
+                fmt= '.2f',
+                ax = ax,
+                linecolor = 'white',
+                linewidths = 1.3,
+                cbar = False,
+                annot_kws = {"size": 12})
+    plt.xticks(size = 14)
+    plt.yticks(size = 12,
+               rotation = 0)
+    plt.title("Descriptive Statistics", size = 14)
+    plt.show()
+    
+desc_stats(cols)
+# grabbing numeric and categorical columns:
+def cat_num_cols(dataframe,cat_th=12,car_th=20):
+    
+    # categorical columns
+    cat_cols=[col for col in dataframe.columns if dataframe[col].dtypes=="O"]
+    
+    # numerical columns
+    num_cols=[col for col in dataframe.columns if dataframe[col].dtypes!="O"]
+    
+    print(f"Observations: {dataframe.shape[0]}")
+    print(f"Variables: {dataframe.shape[1]}")
+    print(f'cat_cols: {len(cat_cols)}')
+    print(f'num_cols: {len(num_cols)}')
+ 
+    
+    return cat_cols,num_cols
+
+cat_cols,num_cols=cat_num_cols(df)
+# distribution of categorical variables
+colors = ['#7DBCE6','#EEBDEE','#EAEAAF','#8FE195','#E28181',
+          '#87D8DB','#C2E37D','#DF93A4','#DCB778','#C497DE']
+
+cat_cols=[col for col in df.columns if df[col].dtypes=="O" and col not in "Product ID"]
+
+def cat_summary(dataframe, col):
+    print(pd.DataFrame({col:df[col].value_counts(),
+                       "Ratio":100*df[col].value_counts()/len(df)}))
+
+    fig = make_subplots(rows=1,cols=1,
+                        subplot_titles=('Distribution'))
+    fig.add_trace(go.Bar(x=dataframe[col].value_counts().index,
+                            y=dataframe[col].value_counts().values,
+                            marker=dict(color=colors)),row=1,col=1)
+    
+    
+  
+    fig.update_layout(title = {'text': col,
+                               'y':0.9,
+                               'x':0.5,
+                               'xanchor': 'center',
+                               'yanchor': 'top'},
+                      template = "plotly_dark",width=400,height=400)
+    
+    iplot(fig) # to show the plot in notebook with optimized design
+
+for i in cat_cols:
+    cat_summary(df,i)
+<h1 style='background:#0A4D68; border:10; color:cyan; border-color:cyan; border-style:dashed;'><center>FEATURE EXTRACTION
+</center></h1>
+df["Power"] = df["Torque [Nm]"] * df["Rotational speed [rpm]"]
+df_test["Power"] = df_test["Torque [Nm]"] * df_test["Rotational speed [rpm]"]
+
+df["Failure_Sum"] = df["HDF"] + df["OSF"] + df["PWF"] +df["TWF"] + df["RNF"]
+df_test["Failure_Sum"] = df_test["HDF"] + df_test["OSF"] + df_test["PWF"] + df_test["TWF"] + df_test["RNF"]
+<h1 style='background:#0A4D68; border:10; color:cyan; border-color:cyan; border-style:dashed;'><center>FILLING MISSING VALUES
+</center></h1>
+# show the missing values in dataset with ratio
+def missing_values_tabl(df):
+    
+    na_columns = [col for col in df.columns if df[col].isnull().sum() > 0]
+    n_miss = df[na_columns].isnull().sum().sort_values(ascending=False)
+    ratio = (df[na_columns].isnull().sum() / df.shape[0] * 100).sort_values(ascending=False)
+    missing_df = pd.concat([n_miss, np.round(ratio,2)], axis=1, keys=['n_miss', 'ratio'])
+    missing_df = pd.DataFrame(missing_df)
+    return missing_df
+
+missing_values_tabl(df)
+missing_values_tabl(df_test)
+
+<h1 style='background:#0A4D68; border:10; color:cyan; border-color:cyan; border-style:dashed;'><center>DATA VISUALIZATION</center></h1>
+# check the correlation between the features
+num_cols=[col for col in df.columns if df[col].dtypes!="O"]
+
+# correlation matrix:
+corr=df[num_cols].corr()
+plt.figure(figsize=(40,20))
+sns.clustermap(corr,cmap="viridis",linewidths=0.3,fmt=".2f")
+plt.title("Correlation Between Features")
+# pairplot of the selected features
+
+# cols=[col for col in df.columns if col not in ["Product ID","id"]]
+
+# plt.figure(figsize=(20,20))
+# sns.set_style("darkgrid")
+# sns.pairplot(df[cols],kind="reg",diag_kind="kde",palette="husl",hue="Type");
+# plt.title("Distribution of all Variables")
+<h1 style='background:#0A4D68; border:10; color:cyan; border-color:cyan; border-style:dashed;'><center>OUTLIER DETECTION</center></h1>
+# showing outliers with boxplot in the dataset
+num_cols=[col for col in df.columns if df[col].dtypes!="O" and col not in ["id","Product ID"]]
+for i in df[num_cols].columns:
+    sns.boxplot(df[i])
+    plt.title(i)
+    plt.show()
+# # Outlier Thresholds
+
+
+# num_cols=[col for col in df.columns if df[col].dtypes!="O" and col not in ["id","Product ID","Machine failure"]]
+# # #  outlier threshold:
+# def outlier_thresholds(dataframe,col_name,q1=0.02,q3=0.98):
+#     q1=dataframe[col_name].quantile(q1)
+#     q3=dataframe[col_name].quantile(q3)
+#     IQR=q3-q1
+    
+#     up_limit=q3+1.5*IQR
+#     low_limit=q1-1.5*IQR
+    
+#     return low_limit,up_limit
+
+# # # check outliers:
+# # # eğer değişkende aykırı değer varsa True döndürür, yoksa False döndürür.
+# def check_outliers(dataframe,col_name):
+#     low_limit,up_limit=outlier_thresholds(dataframe,col_name)
+#     if dataframe[(dataframe[col_name]<low_limit) | (dataframe[col_name]>up_limit)].any(axis=None):
+#          return True 
+   
+#     else:
+#          return False
+    
+# def replace_with_thresholds(dataframe, col):
+#     low_limit, up_limit = outlier_thresholds(dataframe, col)
+#     if low_limit > 0:
+#         dataframe.loc[(dataframe[col] < low_limit), col] = low_limit
+#         dataframe.loc[(dataframe[col] > up_limit), col] = up_limit
+#     else:
+#         dataframe.loc[(dataframe[col] > up_limit), col] = up_limit   
+        
+# for col in num_cols:
+#      print(col, check_outliers(df, col))
+
+# for col in num_cols:
+#     replace_with_thresholds(df, col)
+#     replace_with_thresholds(df_test, col)
+# print("After filling with thresholds:")
+# for col in num_cols:
+#     print(col,check_outliers(df,col))
+<h1 style='background:#0A4D68; border:10; color:cyan; border-color:cyan; border-style:dashed;'><center>FEATURE ENGINEERING</center></h1>
+# LABEL ENCODING:
+le = LabelEncoder()
+
+
+def label_encoder(df, column_name):
+    if df[column_name].dtype == 'object' and column_name not in ["Product ID","id"]:
+        if df[column_name].nunique() <= 2:
+            le = LabelEncoder()
+            df[column_name] = le.fit_transform(df[column_name])
+            return df
+        elif df[column_name].nunique() > 2  and df[column_name].nunique() <= 10:
+            ohe = OneHotEncoder()
+            ohe_df = pd.DataFrame(ohe.fit_transform(df[[column_name]]).toarray())
+            ohe_df.columns = [column_name + "_" + str(i) for i in ohe_df.columns]
+            df = df.join(ohe_df)
+            df = df.drop(column_name, axis=1)
+            return df
+        else:
+            return df
+        
+    else:
+        return df
+    
+
+for i in df.columns:
+    df = label_encoder(df, i)
+    
+for i in df_test.columns:
+    df_test=label_encoder(df_test,i)
+    
+    
+df.head(10)
+<h1 style='background:#0A4D68; border:10; color:cyan; border-color:cyan; border-style:dashed;'><center>DATA PREPROCESSING</center></h1>
+
+df1=df.drop(["Product ID","id"],axis=1)
+
+X=df1.drop(["Machine failure"],axis=1).values
+y=df1["Machine failure"].values.reshape(-1,1)
+
+X_train,X_test,y_train,y_test=train_test_split(X,y,test_size=0.20,random_state=42)
+
+print("X_train shape: ",X_train.shape)
+print("X_test shape: ",X_test.shape)
+print("y_train shape: ",y_train.shape)
+print("y_test shape: ",y_test.shape)
+
+df_test=df_test.drop(["Product ID","id"],axis=1)
+
+sc=StandardScaler()
+sc1=StandardScaler()
+X_train=sc.fit_transform(X_train)
+X_test=sc.transform(X_test)
+
+df_test=sc1.fit_transform(df_test)
+<h1 style='background:#0A4D68; border:10; color:cyan; border-color:cyan; border-style:dashed;'><center>DATA MODELING AND EVALUATING</center></h1>
+# MODELING:
+
+knn=KNeighborsClassifier()
+svc=SVC(random_state=42)
+nb=GaussianNB()
+dtc=DecisionTreeClassifier(random_state=42)
+rfc=RandomForestClassifier(random_state=42)
+xgb=XGBClassifier(random_state=42)
+gbc=GradientBoostingClassifier(random_state=42)
+abc=AdaBoostClassifier(random_state=42)
+lr=LogisticRegression(max_iter=309,random_state=42,solver="liblinear",C=0.1)
+ct=CatBoostClassifier(verbose=1,random_state=42)
+
+models = [knn, svc, nb, dtc, rfc, xgb,gbc, abc, lr,ct]
+overral=pd.DataFrame(columns=["Model","Accuracy Score","R2 Score","F1 SCORE","AUC-ROC"])
+for model in models:
+    
+    model.fit(X_train,y_train)
+    y_pred=model.predict(X_test)
+    acc=accuracy_score(y_test,y_pred)
+    r2=r2_score(y_test,y_pred)
+    f1=f1_score(y_test,y_pred)
+    auc=roc_auc_score(y_test,y_pred)
+    
+    overral=overral._append({"Model":model.__class__.__name__,
+                            "Accuracy Score":acc,"R2 Score":r2,"F1 SCORE":f1,"AUC-ROC":auc},ignore_index=True)
+    
+    print("Model: ",model.__class__.__name__)
+    print("Classification Report: \n",classification_report(y_test,y_pred))
+    fig=px.imshow(confusion_matrix(y_test,y_pred),color_continuous_scale='tropic',title="Confusion Matrix of "+model.__class__.__name__,
+              labels=dict(x="Predicted",y="Actual",color="Counts"),color_continuous_midpoint=0.8,
+              width=400,height=400,template="plotly_dark",text_auto=True)
+    fig.show()
+    print("----------------------------------------------------------")
+    
+
+overral=overral.sort_values(by="Accuracy Score",ascending=False)
+overral=overral.style.background_gradient(cmap="Spectral")
+overral
+
+<h1 style='background:#0A4D68; border:10; color:cyan; border-color:cyan; border-style:dashed;'><center>MODEL TUNING</center></h1>
+# # # model için en iyi parametreleri bulma:
+
+#from sklearn.model_selection import RandomizedSearchCV
+#models = [gbc]
+
+# xgb_params= {'learning_rate':np.arange(0.1,1,0.1),
+#                 'max_depth': np.arange(2,10,1),
+#                'n_estimators': np.arange(100,1000,100)}
+
+#gbc_params= {'learning_rate': np.arange(0.1,1,0.1),
+   #             'max_depth': np.arange(2,10,1),
+    #           'n_estimators': np.arange(100,1000,100)}
+
+
+# rfc_params={"n_estimators":np.arange(100,1000,100),
+#             "max_features":np.arange(1,11),
+#             "min_samples_split":np.arange(2,20),
+#             "min_samples_leaf":np.arange(1,10)}
+
+# abc_params={"n_estimators":np.arange(100,1000,100),
+#             "learning_rate":np.arange(0.1,1,0.1)}
+
+
+
+#params=[gbc_params]
+
+
+#for model in zip(models, params):
+ #   rd_cv=RandomizedSearchCV(model[0],model[1],cv=8,scoring="accuracy",verbose=1)
+  #  rd_cv.fit(X_train, y_train)
+   # print(model[0], rd_cv.best_params_)
+    #print(model[0], rd_cv.best_score_)
+<h1 style='background:#0A4D68; border:10; color:cyan; border-color:cyan; border-style:dashed;'><center>SUBMISSION</center></h1>
+ct= CatBoostClassifier(iterations=1050,
+                          learning_rate=0.015,
+                          eval_metric='AUC',
+                          random_seed=24930541,
+                          bagging_temperature=0.2,
+                          od_type='Iter',
+                          metric_period=50,
+                          od_wait=100,
+                          subsample=0.820,verbose=None)   
+ct.fit(X_train,y_train)
+y_pred=ct.predict_proba(df_test)[:,1]
+
+output = pd.DataFrame({'id': test["id"],
+                       'Machine failure': y_pred})
+output.head()
+
+output.to_csv('/kaggle/working/submission.csv', index=False)
